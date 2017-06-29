@@ -6,53 +6,71 @@ define([
 ], function(Jupyter, $, require, events) {
   'use strict';
 
-  function _get_cells () {
-    return Jupyter.notebook.get_cells();
+  // Finds num of leading #'s in a given string'
+  function get_heading_level (text) {
+    var error = 7;
+    return text.match(/^#*/)[0].length || error;
   }
 
-  /**
-   * Return the level of nbcell.
-   * The cell level is an integer in the range 1-7 inclusive
-   *
-   * @param {Object} cell Cell instance or jQuery collection of '.cell' elements
-   * @return {Integer} cell level
-   */
-  function get_cell_level (cell) {
-    // headings can have a level up to 6, so 7 is used for a non-heading
-    var level = 7;
-    if (cell === undefined) {
-      return level;
-    }
-    if ((typeof(cell) === 'object')  && (cell.cell_type === 'markdown')) {
-      level = cell.get_text().match(/^#*/)[0].length || level;
-    }
-    return Math.min(level, 7); // we rely on 7 being max
+  function replace_by_index(str, before, after, last_index) {
+    var begin = last_index - before.length;
+    var end = last_index;
+    return str.substring(0,begin) + after + str.substring(end);
   }
 
-  function get_headings (cell) {
-    return cell.get_text().match(/^\#* .*/gm);
+  function strip_numbers(str) {
+    return str.replace(/^[\d. ]+ (.*)/g, '$1');
   }
 
   function number_cells() {
+    // instantiate dictionary keeping track of what number to append to
+    // each header
     var heading_count = {};
     // headings can have a level up to 6
     for (var i = 1; i < 7; i++) {
-      heading_count[String(i)] = 0;
+      heading_count[String(i)] = 1;
     }
+
     var re = /^\#* (.*)/gm;
-    var cells = _get_cells();
+    var cells = Jupyter.notebook.get_cells();
+
     for (var j = 0; j < cells.length; j++) {
       var text = cells[j].get_text();
       var match = re.exec(text);
-      while (match) {
 
+      while (match) {
+        var level = get_heading_level(match[0]);
+        var content = match[1];
+
+        // handle content
+        var new_content = String(heading_count[String(level)]) + '. ' + strip_numbers(content);
+        // I think this runs into problems if multiple heading are the same
+        text = replace_by_index(text, content, new_content, re.lastIndex);
+
+        // handle numbering
+        heading_count[String(level)] += 1;
+        for (var k = level + 1; k < 7; k++) {
+          heading_count[String(k)] = 1;
+        }
+
+        match = re.exec(text);
       }
+      console.log(text);
+      cells[j].set_text(text);
+      cells[j].render();
     }
   }
 
 
+
   var load_extension = function() {
-    events.on('rendered.MarkdownCell', function() {alert('triggered');});
+    Jupyter.toolbar.add_buttons_group([action]);
+  };
+
+  var action = {
+    'label'   : 'Number Markdown Cells',
+    'icon'    : 'fa fa-rocket',
+    'callback': number_cells
   };
 
   var extension = {
