@@ -5,7 +5,7 @@ setuptools.setup(
     version='0.1.0',
     author="Jacky Lu",
     description="",
-    packages= ["nbnumbermd"]
+    packages= ["nbnumbermd"],
     install_requires=[
         'notebook',
     ],
