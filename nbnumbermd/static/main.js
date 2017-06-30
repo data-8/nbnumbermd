@@ -8,27 +8,37 @@ define([
 
   // Finds num of leading #'s in a given string'
   function get_heading_level (text) {
-    var error = 7;
-    return text.match(/^#*/)[0].length || error;
+    return text.match(/^#*/)[0].length - 1;
   }
 
+  // Replaces 'before' with 'after' given the last index of 'before'
   function replace_by_index(str, before, after, last_index) {
     var begin = last_index - before.length;
     var end = last_index;
     return str.substring(0,begin) + after + str.substring(end);
   }
 
+  // Removes previous numbers from headings
   function strip_numbers(str) {
     return str.replace(/^[\d. ]+ (.*)/g, '$1');
   }
 
+  // Generate heading numbers as a string
+  function generate_number(level, counts) {
+    var rs ='';
+    for (var i = 0; i <= level; i++) {
+      rs += String(counts[i]) + '.';
+    }
+    return rs;
+  }
+
   function number_cells() {
-    // instantiate dictionary keeping track of what number to append to
-    // each header
-    var heading_count = {};
+    // list to track heading numbers
+    var heading_count = [];
+
     // headings can have a level up to 6
-    for (var i = 1; i < 7; i++) {
-      heading_count[String(i)] = 1;
+    for (var i = 0; i < 7; i++) {
+      heading_count[i] = 0;
     }
 
     var re = /^\#* (.*)/gm;
@@ -42,20 +52,19 @@ define([
         var level = get_heading_level(match[0]);
         var content = match[1];
 
-        // handle content
-        var new_content = String(heading_count[String(level)]) + '. ' + strip_numbers(content);
-        // I think this runs into problems if multiple heading are the same
-        text = replace_by_index(text, content, new_content, re.lastIndex);
-
-        // handle numbering
-        heading_count[String(level)] += 1;
+        // track numbering
+        heading_count[level] += 1;
         for (var k = level + 1; k < 7; k++) {
-          heading_count[String(k)] = 1;
+          heading_count[k] = 0;
         }
+
+        // handle content
+        var new_content = generate_number(level, heading_count) + ' ' + strip_numbers(content);
+        text = replace_by_index(text, content, new_content, re.lastIndex);
 
         match = re.exec(text);
       }
-      console.log(text);
+      
       cells[j].set_text(text);
       cells[j].render();
     }
