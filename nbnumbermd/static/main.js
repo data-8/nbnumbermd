@@ -5,6 +5,7 @@ define([
 
   // Finds num of leading #'s in a given string'
   function get_heading_level (text) {
+    // zero indexed, as levels are stored in an list
     return text.match(/^#*/)[0].length - 1;
   }
 
@@ -29,6 +30,7 @@ define([
     return rs;
   }
 
+  // track/update numbering thus far
   function update_numbering(heading_count, level){
     heading_count[level] += 1;
     for (var k = level + 1; k < 7; k++) {
@@ -36,6 +38,7 @@ define([
     }
   }
 
+  // replace/add numbers to existing content
   function handle_content(text, heading_count, level, content, re) {
     var new_content = generate_number(level, heading_count) + ' ' + strip_numbers(content);
     return replace_by_index(text, content, new_content, re.lastIndex);
@@ -64,6 +67,10 @@ define([
 
       while (match) {
         level = get_heading_level(match[0]);
+        if (level >= 6) {
+          match = re.exec(text);
+          continue;
+        }
         content = match[1];
 
         update_numbering(heading_count, level);
