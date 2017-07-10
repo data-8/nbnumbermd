@@ -1,9 +1,6 @@
 define([
   'base/js/namespace',
-  'jquery',
-  'require',
-  'base/js/events',
-], function(Jupyter, $, require, events) {
+], function(Jupyter) {
   'use strict';
 
   // Finds num of leading #'s in a given string'
@@ -15,7 +12,7 @@ define([
   function replace_by_index(str, before, after, last_index) {
     var begin = last_index - before.length;
     var end = last_index;
-    return str.substring(0,begin) + after + str.substring(end);
+    return str.substring(0, begin) + after + str.substring(end);
   }
 
   // Removes previous numbers from headings
@@ -27,44 +24,54 @@ define([
   function generate_number(level, counts) {
     var rs ='';
     for (var i = 0; i <= level; i++) {
-      rs += String(counts[i]) + '.';
+      rs += counts[i] + '.';
     }
     return rs;
   }
 
+  function update_numbering(heading_count, level){
+    heading_count[level] += 1;
+    for (var k = level + 1; k < 7; k++) {
+      heading_count[k] = 0;
+    }
+  }
+
+  function handle_content(text, heading_count, level, content, re) {
+    var new_content = generate_number(level, heading_count) + ' ' + strip_numbers(content);
+    return replace_by_index(text, content, new_content, re.lastIndex);
+  }
+
   function number_cells() {
+    var heading_count, cells, re, text, match, level, content;
     // list to track heading numbers
-    var heading_count = [];
+    heading_count = [];
 
     // headings can have a level up to 6
     for (var i = 0; i < 7; i++) {
       heading_count[i] = 0;
     }
 
-    var re = /^\#* (.*)/gm;
-    var cells = Jupyter.notebook.get_cells();
+    re = /^#* (.*)/gm;
+    cells = Jupyter.notebook.get_cells();
 
     for (var j = 0; j < cells.length; j++) {
-      var text = cells[j].get_text();
-      var match = re.exec(text);
+      text = cells[j].get_text();
+
+      // ## Example Heading
+      // match[0]: '##'
+      // match[1]: 'Example Heading'
+      match = re.exec(text);
 
       while (match) {
-        var level = get_heading_level(match[0]);
-        var content = match[1];
+        level = get_heading_level(match[0]);
+        content = match[1];
 
-        // track numbering
-        heading_count[level] += 1;
-        for (var k = level + 1; k < 7; k++) {
-          heading_count[k] = 0;
-        }
-
-        // handle content
-        var new_content = generate_number(level, heading_count) + ' ' + strip_numbers(content);
-        text = replace_by_index(text, content, new_content, re.lastIndex);
+        update_numbering(heading_count, level);
+        text = handle_content(text, heading_count, level, content, re);
 
         match = re.exec(text);
       }
-      
+
       cells[j].set_text(text);
       cells[j].render();
     }
